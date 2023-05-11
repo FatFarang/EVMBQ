@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Binance Smart Chain",
+    "rpcUrl": "",
+    "chunkSize": 25000
+  },
+  {
+    "name": "Polygon",
+    "rpcUrl": "",
+    "chunkSize": 25000
+  },
+  {
+    "name": "Ethereum",
+    "rpcUrl": "",
+    "chunkSize": 25000
+  }
+]
