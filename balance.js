@@ -77,40 +77,58 @@ async function fetchTokenContracts(network, address, abi) {
   const contract = new web3.eth.Contract(abi.abi, address);
   const endBlock = await web3.eth.getBlockNumber();
   let chunkSize = network.chunkSize;
+  let chunkSizeStep = Math.round(chunkSize * 0.1)
 
   for (let i = lastBlock; i < endBlock; i += chunkSize) {
-    const options = {
-      fromBlock: i,
-      toBlock: Math.min(i + chunkSize - 1, endBlock),
-      filter: {
-        to: address
+    console.log(`Looking for ${abi.type} tokens on ${network.name} for ${address} ${i}/${endBlock} @ ${chunkSize} (${Math.round(100.0 / endBlock * i * 100) / 100})`);
+
+    let retry = 10;
+
+    while (1) {
+      try {
+        const options = {
+          fromBlock: i,
+          toBlock: Math.min(i + chunkSize - 1, endBlock),
+          filter: {
+            to: address
+          }
+        };
+
+        const startTime = Date.now();
+        const events = await contract.getPastEvents('Transfer', options);
+        const elapsedTime = Date.now() - startTime;
+
+        if (elapsedTime > 6000) {
+          chunkSize = Math.max(1, Math.round(chunkSize - chunkSizeStep));
+        } else if (elapsedTime < 3000) {
+          chunkSize = Math.min(network.chunkSize * 10, Math.round(chunkSize + chunkSizeStep));
+        }
+
+        for (const event of events) {
+          const tokenAddress = event.address.toLowerCase();
+
+          contracts[tokenAddress] = {
+            type: abi.type
+          };
+
+          console.log(`Found ${abi.type} token on ${network.name} for ${address} `);
+        }
+
+        saveCachedData(network, address, i, contracts);
+        break;
+      } catch (err) {
+        chunkSize = Math.max(1, Math.round(chunkSize - chunkSizeStep));
+        if (retry-- < 1) {
+          web3.currentProvider.disconnect();
+          throw err;
+        }
       }
-    };
-
-    console.log(`Looking for tokens on ${network.name} for ${address} ${i}/${endBlock} @ ${chunkSize} (${Math.round(100.0 / endBlock * i * 100) / 100})`);
-    const startTime = Date.now();
-    const events = await contract.getPastEvents('Transfer', options);
-    const elapsedTime = Date.now() - startTime;
-
-    if (elapsedTime > 6000) {
-      chunkSize = Math.max(1, Math.round(network.chunkSize * 0.9));
-    } else if (elapsedTime < 3000) {
-      chunkSize = Math.min(network.chunkSize * 2, Math.round(network.chunkSize * 1.1));
     }
-
-    for (const event of events) {      
-      const tokenAddress = event.address.toLowerCase();
-
-      contracts[tokenAddress] = {
-        type: abi.type
-      };
-      
-      console.log(`Found token on ${network.name} for ${address} `);
-    }
-
-    saveCachedData(network, address, i, contracts);
   }
 
+  web3.currentProvider.disconnect();
+
+  console.log(`Looking for ${abi.type} token on ${network.name} for ${address} finished!`);
 
   return contracts;
 }
@@ -125,19 +143,26 @@ async function fetchTokenBalances(network, address, abi) {
   const web3 = createWeb3(network.rpcUrl);
   const balances = {};
 
-  for (const tokenAddress in contracts) {
-    const tokenType = contracts[tokenAddress].type;
-    const tokenContract = new web3.eth.Contract(abi.abi, tokenAddress);
+  try {
+    for (const tokenAddress in contracts) {
+      const tokenType = contracts[tokenAddress].type;
+      const tokenContract = new web3.eth.Contract(abi.abi, tokenAddress);
 
+      console.log(`Looking for balance for ${tokenAddress}, ${tokenContract.name}, ${tokenType} on ${network.name} for ${address}`);
+      const balance = await tokenContract.methods.balanceOf(address).call();
+
+      balances[tokenAddress] = {
+        type: tokenType,
+        balance: balance
+      };
+
+      console.log(`Balance for ${tokenAddress}, ${tokenContract.name}, ${tokenType} on ${network.name} for ${address} is ${balance}`);
+    }
+  } catch (err) {
     console.log(`Looking for balance for ${tokenAddress}, ${tokenContract.name}, ${tokenType} on ${network.name} for ${address}`);
-    const balance = await tokenContract.methods.balanceOf(address).call();
-
-    balances[tokenAddress] = {
-      type: tokenType,
-      balance: balance
-    };
-
-    console.log(`Balance for ${tokenAddress}, ${tokenContract.name}, ${tokenType} on ${network.name} for ${address} is ${balance}`);
+    throw ex;
+  } finally {
+    web3.currentProvider.disconnect();
   }
 
   return balances;
@@ -150,23 +175,30 @@ async function fetchTokenBalances(network, address, abi) {
 // @param {array} abis - An array of ABI objects with properties type and abi.
 // @returns {object} balances - An object containing the token balances for each address in each network.
 async function fetchAllTokenBalances(networks, addresses, abis) {
-  const balances = {};
+  const __fn_query = async (network) => {
+    const balances = {
+      [network.name]: {}
+    };
 
-  for (const network of networks) {
     for (const address of addresses) {
       for (const abi of abis) {
-        console.log(`Fetching balances for ${abi.type} on ${network.name} for ${address}`)
-        try {
-          balances[network][address] = await fetchTokenBalances(network, address, abi);
-        } catch (err) {
-          console.log(`Error fetching balances for ${abi.type} on ${network.name} for ${address}:`, err.message);
-          throw err;
-        }
+        let tokenBalance = await fetchTokenBalances(network, address, abi);
+        balances[network.name][address] = { ...balances[network.name][address], ...tokenBalance }
       }
+    }
+
+    return balances;
+  }
+
+  const promises = [];
+
+  for (const network of networks) {
+    if (network.enabled) {
+      promises.push(__fn_query(network));
     }
   }
 
-  return balances;
+  return Promise.all(promises);
 }
 
 module.exports = {

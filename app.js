@@ -21,14 +21,21 @@ function readJsonArrayFromFile(filePath) {
  * If an error occurs, logs out the error message. 
  */
 try {
+  /*
+  setInterval(() => {
+    console.log('Active requests:', process._getActiveRequests());
+    console.log('Active handles:', process._getActiveHandles());
+  }, 1000);
+  */
+
   const addresses = readJsonArrayFromFile("addresses.json");
   const networks = readJsonArrayFromFile("networks.json");
   const abis = readJsonArrayFromFile("abis.json");
 
   fetchAllTokenBalances(networks, addresses, abis).then(balances => {
-    console.log(JSON.stringify(balances));
+    console.log(JSON.stringify(balances, null, 4));
   }).catch(err => {
-    console.log(err.message);    
+    console.log(err.message);
   });
 } catch (err) {
   console.log(err.message);
