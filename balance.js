@@ -70,13 +70,13 @@ function saveCachedData(network, address, endBlock, contracts) {
 // @param {object} abi - An object containing the ABI of the contract to search for tokens.
 // @returns {object} An object containing the contracts found.
 async function fetchTokenContracts(network, address, abi) {
-  let { contracts, lastBlock } = loadCachedData(network, address);
+  let { contracts, lastBlock } = loadCachedData(network, address);  
 
   const web3 = createWeb3(network.rpcUrl); 
 
   try {
-    const contract = new web3.eth.Contract(abi.abi, address);
-    const endBlock = await web3.eth.getBlockNumber();
+    const contract = new web3.eth.Contract(abi.abi, address); // Fucked! This requires the actual contract address 
+    let endBlock = await web3.eth.getBlockNumber();
     let chunkSize = network.chunkSize;
     let chunkSizeStep = Math.round(chunkSize * 0.1)
 
