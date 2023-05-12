@@ -2,6 +2,75 @@ const Web3 = require('web3');
 const fs = require('fs');
 const path = require('path');
 
+const abi =   {
+  "type": "ERC20",
+  "abi": [
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_to",
+          "type": "address"
+        },
+        {
+          "name": "_value",
+          "type": "uint256"
+        }
+      ],
+      "name": "transfer",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_owner",
+          "type": "address"
+        }
+      ],
+      "name": "balanceOf",
+      "outputs": [
+        {
+          "name": "balance",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "value",
+          "type": "uint256"
+        }
+      ],
+      "name": "Transfer",
+      "type": "event"
+    }
+  ]
+};
 
 // createWeb3()
 // @param {string} rpcUrl - The URL of the RPC endpoint to connect to. Must start with either 'http' or 'wss'.
@@ -70,8 +139,7 @@ function saveCachedData(network, address, endBlock, contracts) {
 // @returns {object} An object containing the contracts found.
 async function fetchTokenContracts(network, address) {
   let { contracts, lastBlock } = loadCachedData(network, address);  
-
-  const web3 = createWeb3(network.rpcUrl); 
+  let web3 = createWeb3(network.rpcUrl); 
 
   try {
     let endBlock = await web3.eth.getBlockNumber();
@@ -81,7 +149,7 @@ async function fetchTokenContracts(network, address) {
     for (let i = lastBlock; i < endBlock; i += chunkSize) {
       console.log(`Looking for tokens on ${network.name} for ${address} ${i}/${endBlock} @ ${chunkSize} (${Math.round(100.0 / endBlock * i * 100) / 100})`);
 
-      let retry = 0;
+      let retry = 5;
 
       while (1) {
         try {
@@ -123,9 +191,13 @@ async function fetchTokenContracts(network, address) {
           saveCachedData(network, address, i, contracts);
           break;
         } catch (err) {
-          chunkSize = Math.max(1, Math.round(chunkSize - chunkSizeStep));
-          if (retry-- < 1) {
+          chunkSize = Math.max(1, Math.round(chunkSize * 0.5));
+          if (retry-- < 1) {            
             throw err;
+          }else{
+            console.log(`Looking for token on ${network.name} for ${address} failed: ${err.message} retrying...`);
+            web3.currentProvider.disconnect();
+            web3 = createWeb3(network.rpcUrl); 
           }
         }
       }
@@ -145,7 +217,7 @@ async function fetchTokenContracts(network, address) {
 // @param {object} network - An object containing information about the network to connect to.
 // @param {string} address - The address of the account to fetch token balances for.
 // @returns {object} An object containing the token balances found.
-async function fetchTokenBalances(network, address, abi) {
+async function fetchTokenBalances(network, address) {
   const contracts = await fetchTokenContracts(network, address);
 
   const balances = {};
@@ -154,21 +226,19 @@ async function fetchTokenBalances(network, address, abi) {
   for (const tokenAddress in contracts) {
     const tokenContract = new web3.eth.Contract(abi.abi, tokenAddress);
 
-    try {
-      const tokenType = abi.type;
-
-      console.log(`Looking for balance for ${tokenAddress}, ${tokenContract.name}, ${tokenType} on ${network.name} for ${address}`);
+    try {      
+      console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address}`);
       const balance = await tokenContract.methods.balanceOf(address).call();
 
       balances[tokenAddress] = {
-        type: tokenType,
+        type: abi.type,
         balance: balance
       };
 
-      console.log(`Looking for balance for ${tokenAddress}, ${tokenContract.name}, ${tokenType} on ${network.name} for ${address} returned ${balance}`);
+      console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address} returned ${balance}`);
 
     } catch (err) {
-      console.log(`Looking for balance for ${tokenAddress}, ${tokenContract.name}, ${tokenType} on ${network.name} for ${address} failed!`, err.message);
+      console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address} failed!`, err.message);
     }
   }
 
@@ -181,14 +251,14 @@ async function fetchTokenBalances(network, address, abi) {
 // @param {array} networks - An array of network objects with properties name and id.
 // @param {array} addresses - An array of Ethereum addresses.
 // @returns {object} balances - An object containing the token balances for each address in each network.
-async function fetchAllTokenBalances(networks, addresses, abis) {
+async function fetchAllTokenBalances(networks, addresses) {
   const __fn_query = async (network) => {
     const balances = {
       [network.name]: {}
     };
 
     for (const address of addresses) {
-        let tokenBalance = await fetchTokenBalances(network, address, abis[0]);
+        let tokenBalance = await fetchTokenBalances(network, address);
         balances[network.name][address] = { ...balances[network.name][address], ...tokenBalance }
     }
 

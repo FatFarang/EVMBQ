@@ -30,9 +30,8 @@ try {
 
   const addresses = readJsonArrayFromFile("addresses.json");
   const networks = readJsonArrayFromFile("networks.json");
-  const abis = readJsonArrayFromFile("abis.json");
 
-  fetchAllTokenBalances(networks, addresses, abis).then(balances => {
+  fetchAllTokenBalances(networks, addresses).then(balances => {
     console.log(JSON.stringify(balances, null, 4));
   }).catch(err => {
     console.log(err.message);
