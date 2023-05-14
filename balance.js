@@ -1,6 +1,5 @@
 const Web3 = require('web3');
-const fs = require('fs');
-const path = require('path');
+const { saveBalanceData, saveCachedData, loadCachedData} = require('./storage');
 
 const abi = {
   "type": "ERC20",
@@ -81,71 +80,6 @@ function createWeb3(rpcUrl) {
   }
   if (rpcUrl.toLowerCase().startsWith('wss')) {
     return new Web3(new Web3.providers.WebsocketProvider(rpcUrl));
-  }
-}
-
-// cacheFilePath()
-// @param {object} network - An object containing information about the network to connect to.
-// @param {string} address - The address of the account to fetch token balances for.
-// @returns {string} The path to the file where cached data should be stored.
-function cacheFilePath(network, address) {
-  return path.join(path.join(__dirname, 'cache'), `${network.name}-${address}.json`);
-}
-
-function balancesFilePath(network, address) {
-  return path.join(path.join(__dirname, 'data'), `${network.name}-${address}.json`);
-}
-
-// loadCachedData()
-// @param {object} network - An object containing information about the network to connect to.
-// @param {string} address - The address of the account to fetch token balances for.
-// @returns {object} An object containing the cached contracts and last block number.
-function loadCachedData(network, address) {
-  let contracts = {};
-  let lastBlock = 0;
-
-  const filepath = cacheFilePath(network, address);
-
-  if (fs.existsSync(filepath)) {
-    const cacheData = JSON.parse(fs.readFileSync(filepath));
-
-    contracts = cacheData.contracts;
-    lastBlock = cacheData.lastBlock;
-  }
-
-  return { contracts, lastBlock }
-}
-
-// saveCachedData()
-// @param {object} network - An object containing information about the network to connect to.
-// @param {string} address - The address of the account to fetch token balances for.
-// @param {number} endBlock - The block number to stop searching at.
-// @param {object} contracts - An object containing the contracts found.
-// @returns {void}
-function saveCachedData(network, address, endBlock, contracts) {
-  const filepath = cacheFilePath(network, address);
-
-  const cacheData = {
-    lastBlock: endBlock,
-    contracts
-  };
-
-  if (!fs.existsSync(path.dirname(filepath))) {
-    fs.mkdirSync(path.dirname(filepath));
-  }
-
-  fs.writeFileSync(filepath, JSON.stringify(cacheData, null, 4));
-}
-
-function saveBalanceData(network, address, balances) {
-  const filepath = balancesFilePath(network, address);
-
-  if (!fs.existsSync(path.dirname(filepath))) {
-    fs.mkdirSync(path.dirname(filepath));
-  }
-
-  if (Object.keys(balances).length > 0) {
-    fs.writeFileSync(filepath, JSON.stringify(balances, null, 4));
   }
 }
 
