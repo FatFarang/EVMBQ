@@ -2,7 +2,7 @@ const Web3 = require('web3');
 const fs = require('fs');
 const path = require('path');
 
-const abi =   {
+const abi = {
   "type": "ERC20",
   "abi": [
     {
@@ -92,6 +92,10 @@ function cacheFilePath(network, address) {
   return path.join(path.join(__dirname, 'cache'), `${network.name}-${address}.json`);
 }
 
+function balancesFilePath(network, address) {
+  return path.join(path.join(__dirname, 'data'), `${network.name}-${address}.json`);
+}
+
 // loadCachedData()
 // @param {object} network - An object containing information about the network to connect to.
 // @param {string} address - The address of the account to fetch token balances for.
@@ -133,13 +137,25 @@ function saveCachedData(network, address, endBlock, contracts) {
   fs.writeFileSync(filepath, JSON.stringify(cacheData, null, 4));
 }
 
+function saveBalanceData(network, address, balances) {
+  const filepath = balancesFilePath(network, address);
+
+  if (!fs.existsSync(path.dirname(filepath))) {
+    fs.mkdirSync(path.dirname(filepath));
+  }
+
+  if (Object.keys(balances).length > 0) {
+    fs.writeFileSync(filepath, JSON.stringify(balances, null, 4));
+  }
+}
+
 // fetchTokenContracts()
 // @param {object} network - An object containing information about the network to connect to.
 // @param {string} address - The address of the account to fetch token balances for.
 // @returns {object} An object containing the contracts found.
 async function fetchTokenContracts(network, address) {
-  let { contracts, lastBlock } = loadCachedData(network, address);  
-  let web3 = createWeb3(network.rpcUrl); 
+  let { contracts, lastBlock } = loadCachedData(network, address);
+  let web3 = createWeb3(network.rpcUrl);
 
   try {
     let endBlock = await web3.eth.getBlockNumber();
@@ -159,7 +175,7 @@ async function fetchTokenContracts(network, address) {
             topics: [
               web3.utils.sha3('Transfer(address,address,uint256)'),
               null,
-              "0x" + address.toLowerCase().substring(2).padStart(64, "0")              
+              "0x" + address.toLowerCase().substring(2).padStart(64, "0")
             ]
           };
 
@@ -176,7 +192,7 @@ async function fetchTokenContracts(network, address) {
           for (const event of events) {
             const tokenAddress = event.address.toLowerCase();
 
-            if(!contracts[tokenAddress]){
+            if (!contracts[tokenAddress]) {
               contracts[tokenAddress] = [];
             }
 
@@ -192,17 +208,17 @@ async function fetchTokenContracts(network, address) {
           break;
         } catch (err) {
           chunkSize = Math.max(1, Math.round(chunkSize * 0.5));
-          if (retry-- < 1) {            
+          if (retry-- < 1) {
             throw err;
-          }else{
+          } else {
             console.log(`Looking for token on ${network.name} for ${address} failed: ${err.message} retrying...`);
             web3.currentProvider.disconnect();
-            web3 = createWeb3(network.rpcUrl); 
+            web3 = createWeb3(network.rpcUrl);
           }
         }
       }
     }
-  } catch (err){
+  } catch (err) {
     throw Error(`Looking for token on ${network.name} for ${address} failed: ${err.message}`)
   } finally {
     web3.currentProvider.disconnect();
@@ -226,7 +242,7 @@ async function fetchTokenBalances(network, address) {
   for (const tokenAddress in contracts) {
     const tokenContract = new web3.eth.Contract(abi.abi, tokenAddress);
 
-    try {      
+    try {
       console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address}`);
       const balance = await tokenContract.methods.balanceOf(address).call();
 
@@ -258,8 +274,11 @@ async function fetchAllTokenBalances(networks, addresses) {
     };
 
     for (const address of addresses) {
-        let tokenBalance = await fetchTokenBalances(network, address);
-        balances[network.name][address] = { ...balances[network.name][address], ...tokenBalance }
+      let tokenBalance = await fetchTokenBalances(network, address);
+      balances[network.name][address] = { ...balances[network.name][address], ...tokenBalance }
+
+      saveBalanceData(network, address, balances[network.name][address]);
+
     }
 
     return balances;
