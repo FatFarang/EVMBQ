@@ -130,7 +130,7 @@ function saveCachedData(network, address, endBlock, contracts) {
     fs.mkdirSync(path.dirname(filepath));
   }
 
-  fs.writeFileSync(filepath, JSON.stringify(cacheData));
+  fs.writeFileSync(filepath, JSON.stringify(cacheData, null, 4));
 }
 
 // fetchTokenContracts()
