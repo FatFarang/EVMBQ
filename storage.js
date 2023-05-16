@@ -83,8 +83,37 @@ function saveBalanceData(network, address, balances) {
     }
 }
 
+function readBalancesFromDirectory(directoryPath) {
+    const balances = {};
+
+    const files = fs.readdirSync(directoryPath);
+    files.forEach((file) => {
+        const filePath = path.join(directoryPath, file);
+        const [network, address] = path.parse(file).name.split('-');
+
+        if (path.extname(filePath).toLowerCase() === '.json') {
+            try {
+                const tokenContract = JSON.parse(fs.readFileSync(filePath));
+
+                if (tokenContract && typeof tokenContract === 'object') {
+                    balances[network] = balances[network] || {};
+                    balances[network][address] = balances[network][address] || [];
+                    balances[network][address].push(tokenContract);
+                } else {
+                    console.error(`Invalid token contract in file: ${filePath}`);
+                }
+            } catch (error) {
+                console.error(`Error reading file: ${filePath}`, error);
+            }
+        }
+    });
+
+    return balances;
+}
+
 module.exports = {
     saveCachedData,
     loadCachedData,
-    saveBalanceData
+    saveBalanceData,
+    readBalancesFromDirectory
 }
