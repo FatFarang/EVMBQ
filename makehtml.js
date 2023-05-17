@@ -45,7 +45,6 @@ function generateHTML(balances) {
           <tr>
             <th>Address</th>
             <th>Token Contract</th>
-            <th>Type</th>
             <th>Balance</th>
           </tr>
     `;
@@ -56,10 +55,9 @@ function generateHTML(balances) {
           if(parseInt(tokenContracts[tokenContract].balance) === 0) return;
           const color = '#' + address.substring(2,8) + 'A0';
           html += `
-          <tr style="background-color: ${color}">
+          <tr style="background-color: ${color}; font-family: monospace; font-size: 12px;">
             <td>${address}</td>
             <td>${tokenContract}</td>
-            <td>${tokenContracts[tokenContract].type}</td>
             <td>${tokenContracts[tokenContract].balance}</td>
           </tr>
         `;
