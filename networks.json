@@ -2,16 +2,22 @@
   {
     "name": "Binance Smart Chain",
     "rpcUrl": "",
-    "chunkSize": 25000
+    "chunkSize": 25000,
+    "enabled": true,
+    "explorer": "https://bscscan.com"
   },
   {
     "name": "Polygon",
     "rpcUrl": "",
-    "chunkSize": 25000
+    "chunkSize": 25000,  
+    "enabled": true,
+    "explorer": "https://polygonscan.com"
   },
   {
     "name": "Ethereum",
     "rpcUrl": "",
-    "chunkSize": 25000
+    "chunkSize": 25000,
+    "enabled": true,
+    "explorer": "https://etherscan.io"
   }
 ]
