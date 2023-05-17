@@ -1,15 +1,5 @@
 const { fetchAllTokenBalances } = require('./balance');
-const fs = require('fs');
-
-// readJsonArrayFromFile()
-// Reads a JSON array from a file and returns it as an array.
-// @param {string} filePath - The path to the file containing the JSON array.
-// @returns {array} jsonArray - The parsed JSON array.
-function readJsonArrayFromFile(filePath) {
-  const fileContent = fs.readFileSync(filePath, 'utf-8');
-  const jsonArray = JSON.parse(fileContent);
-  return jsonArray;
-}
+const { readJsonArrayFromFile } = require('./storage');
 
 /**
  * Main function

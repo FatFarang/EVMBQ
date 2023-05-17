@@ -1,6 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 
+// readJsonArrayFromFile()
+// Reads a JSON array from a file and returns it as an array.
+// @param {string} filePath - The path to the file containing the JSON array.
+// @returns {array} jsonArray - The parsed JSON array.
+function readJsonArrayFromFile(filePath) {
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const jsonArray = JSON.parse(fileContent);
+    return jsonArray;
+  }
+  
+
 /**
 Constructs a file path string to cache data based on network name and address
 @param {Object} network - Object containing information about the network
@@ -103,6 +114,7 @@ function readBalancesFromDirectory(directoryPath) {
 }
 
 module.exports = {
+    readJsonArrayFromFile,
     saveCachedData,
     loadCachedData,
     saveBalanceData,
