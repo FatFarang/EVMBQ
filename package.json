@@ -1,4 +1,11 @@
 {
+  "name": "@fatfarang/evmbq",
+  "version": "1.2.0",
+  "private": true,
+  "scripts": {
+    "evmbq": "node app.js && node makehtml.js",
+    "html": "node makehtml.js"
+  },
   "dependencies": {
     "web3": "^1.9.0"
   }
