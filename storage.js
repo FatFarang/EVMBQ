@@ -92,19 +92,10 @@ function readBalancesFromDirectory(directoryPath) {
         const [network, address] = path.parse(file).name.split('-');
 
         if (path.extname(filePath).toLowerCase() === '.json') {
-            try {
-                const tokenContract = JSON.parse(fs.readFileSync(filePath));
-
-                if (tokenContract && typeof tokenContract === 'object') {
-                    balances[network] = balances[network] || {};
-                    balances[network][address] = balances[network][address] || [];
-                    balances[network][address].push(tokenContract);
-                } else {
-                    console.error(`Invalid token contract in file: ${filePath}`);
-                }
-            } catch (error) {
-                console.error(`Error reading file: ${filePath}`, error);
-            }
+            const tokenContract = JSON.parse(fs.readFileSync(filePath));
+            balances[network] = balances[network] || {};
+            balances[network][address] = balances[network][address] || [];
+            balances[network][address].push(tokenContract);
         }
     });
 
