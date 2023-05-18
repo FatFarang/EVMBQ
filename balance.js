@@ -1,5 +1,5 @@
 const Web3 = require('web3');
-const { saveBalanceData, saveCachedData, loadCachedData} = require('./storage');
+const { saveBalanceData, saveCachedData, loadCachedData, readBalancesFromDirectory } = require('./storage');
 
 const abi = {
   "type": "ERC20",
@@ -169,6 +169,7 @@ async function fetchTokenContracts(network, address) {
 // @returns {object} An object containing the token balances found.
 async function fetchTokenBalances(network, address) {
   const contracts = await fetchTokenContracts(network, address);
+  const cachedBalances = readBalancesFromDirectory('./data');
 
   const balances = {};
   const web3 = createWeb3(network.rpcUrl);
@@ -179,14 +180,33 @@ async function fetchTokenBalances(network, address) {
     try {
       console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address}`);
       const balance = await tokenContract.methods.balanceOf(address).call();
+      let status = 'new';
+
+      if (cachedBalances[network.name] &&
+        cachedBalances[network.name][address] &&
+        cachedBalances[network.name][address].some((cachedToken) => cachedToken.hasOwnProperty(tokenAddress))
+      ) {
+        const cachedToken = cachedBalances[network.name][address].find((x) => x.hasOwnProperty(tokenAddress));
+        const cachedBalance = cachedToken[tokenAddress].balance;
+
+        status = balance !== cachedBalance ? 'changed' : 'unchanged'; 
+
+        if (balance !== cachedBalance) {
+          console.log(`Detected changed balance for ${tokenAddress} on ${network.name} for ${address}`);
+        } else {
+          console.log(`No balance changed detected for known token ${tokenAddress} on ${network.name} for ${address}`);
+        }
+      } else {
+        console.log(`Detected new token balance for ${tokenAddress} on ${network.name} for ${address}`);
+      }
 
       balances[tokenAddress] = {
+        status: status,
         type: abi.type,
         balance: balance
       };
 
       console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address} returned ${balance}`);
-
     } catch (err) {
       console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address} failed!`, err.message);
     }
@@ -196,6 +216,7 @@ async function fetchTokenBalances(network, address) {
 
   return balances;
 }
+
 
 // fetchAllTokenBalances()
 // @param {array} networks - An array of network objects with properties name and id.
@@ -212,7 +233,6 @@ async function fetchAllTokenBalances(networks, addresses) {
       balances[network.name][address] = { ...balances[network.name][address], ...tokenBalance }
 
       saveBalanceData(network, address, balances[network.name][address]);
-
     }
 
     return balances;
