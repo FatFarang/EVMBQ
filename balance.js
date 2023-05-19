@@ -71,6 +71,24 @@ const abi = {
   ]
 };
 
+const config = {
+  log: {
+    fetchTokenContracts: {
+      debug: false,
+      info: false,
+      begin: false,
+      end: false,
+      progress: true,          
+    },
+    fetchTokenBalances: {
+      debug: false,
+      begin: false,
+      end: false,
+      progress: true,      
+    },
+  }
+}
+
 // createWeb3()
 // @param {string} rpcUrl - The URL of the RPC endpoint to connect to. Must start with either 'http' or 'wss'.
 // @returns {Web3} A Web3 instance connected to the given RPC endpoint.
@@ -91,13 +109,19 @@ async function fetchTokenContracts(network, address) {
   let { contracts, lastBlock } = loadCachedData(network, address);
   let web3 = createWeb3(network.rpcUrl);
 
+  if (config.log.fetchTokenContracts.begin) {
+    console.log(`Looking for token on ${network.name} for ${address}`);
+  }
+
   try {
     let endBlock = await web3.eth.getBlockNumber();
     let chunkSize = network.chunkSize;
     let chunkSizeStep = Math.round(chunkSize * 0.1)
 
     for (let i = lastBlock; i < endBlock; i += chunkSize) {
-      console.log(`Looking for tokens on ${network.name} for ${address} ${i}/${endBlock} @ ${chunkSize} (${Math.round(100.0 / endBlock * i * 100) / 100})`);
+      if (config.log.fetchTokenContracts.progress) {
+        console.log(`Looking for tokens on ${network.name} for ${address} ${i}/${endBlock} @ ${chunkSize} (${Math.round(100.0 / endBlock * i * 100) / 100})`);
+      }
 
       let retry = 5;
 
@@ -135,7 +159,9 @@ async function fetchTokenContracts(network, address) {
               event
             ];
 
-            console.log(`Found token ${tokenAddress} on ${network.name} for ${address}`);
+            if (config.log.fetchTokenContracts.info) {
+              console.log(`Found token ${tokenAddress} on ${network.name} for ${address}`);
+            }
           }
 
           saveCachedData(network, address, i, contracts);
@@ -145,7 +171,9 @@ async function fetchTokenContracts(network, address) {
           if (retry-- < 1) {
             throw err;
           } else {
-            console.log(`Looking for token on ${network.name} for ${address} failed: ${err.message} retrying...`);
+            if (config.log.fetchTokenContracts.debug) {
+              console.log(`Looking for token on ${network.name} for ${address} failed: ${err.message} retrying...`);
+            }
             web3.currentProvider.disconnect();
             web3 = createWeb3(network.rpcUrl);
           }
@@ -158,7 +186,9 @@ async function fetchTokenContracts(network, address) {
     web3.currentProvider.disconnect();
   }
 
-  console.log(`Looking for token on ${network.name} for ${address} finished!`);
+  if (config.log.fetchTokenContracts.end) {
+    console.log(`Looking for token on ${network.name} for ${address} finished!`);
+  }
 
   return contracts;
 }
@@ -178,7 +208,10 @@ async function fetchTokenBalances(network, address) {
     const tokenContract = new web3.eth.Contract(abi.abi, tokenAddress);
 
     try {
-      console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address}`);
+      if (config.log.fetchTokenBalances.begin) {
+        console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address}`);
+      }
+
       const balance = await tokenContract.methods.balanceOf(address).call();
       let status = 'new';
 
@@ -189,15 +222,21 @@ async function fetchTokenBalances(network, address) {
         const cachedToken = cachedBalances[network.name][address].find((x) => x.hasOwnProperty(tokenAddress));
         const cachedBalance = cachedToken[tokenAddress].balance;
 
-        status = balance !== cachedBalance ? 'changed' : 'unchanged'; 
+        status = balance !== cachedBalance ? 'changed' : 'unchanged';
 
         if (balance !== cachedBalance) {
-          console.log(`Detected changed balance for ${tokenAddress} on ${network.name} for ${address}`);
+          if (config.log.fetchTokenBalances.progress) {
+            console.log(`Detected changed balance for ${tokenAddress} on ${network.name} for ${address}`);
+          }
         } else {
-          console.log(`No balance changed detected for known token ${tokenAddress} on ${network.name} for ${address}`);
+          if (config.log.fetchTokenBalances.debug) {
+            console.log(`No balance changed detected for known token ${tokenAddress} on ${network.name} for ${address}`);
+          }
         }
       } else {
-        console.log(`Detected new token balance for ${tokenAddress} on ${network.name} for ${address}`);
+        if (config.log.fetchTokenBalances.progress) {
+          console.log(`Detected new token ${tokenAddress} on ${network.name} for ${address}`);
+        }
       }
 
       balances[tokenAddress] = {
@@ -205,10 +244,10 @@ async function fetchTokenBalances(network, address) {
         type: abi.type,
         balance: balance
       };
-
-      console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address} returned ${balance}`);
     } catch (err) {
-      console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address} failed!`, err.message);
+      if (config.log.fetchTokenBalances.end) {
+        console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address} failed!`, err.message);
+      }
     }
   }
 
