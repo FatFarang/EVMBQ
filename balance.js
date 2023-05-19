@@ -47,6 +47,20 @@ const abi = {
       "type": "function"
     },
     {
+      "constant": true,
+      "inputs": [],
+      "name": "name",
+      "outputs": [
+        {
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "anonymous": false,
       "inputs": [
         {
@@ -78,13 +92,13 @@ const config = {
       info: false,
       begin: false,
       end: false,
-      progress: true,          
+      progress: true,
     },
     fetchTokenBalances: {
       debug: false,
       begin: false,
       end: false,
-      progress: true,      
+      progress: true,
     },
   }
 }
@@ -212,6 +226,7 @@ async function fetchTokenBalances(network, address) {
         console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address}`);
       }
 
+      const tokenName = await tokenContract.methods.name().call();
       const balance = await tokenContract.methods.balanceOf(address).call();
       let status = 'new';
 
@@ -242,6 +257,7 @@ async function fetchTokenBalances(network, address) {
       balances[tokenAddress] = {
         status: status,
         type: abi.type,
+        name: tokenName,
         balance: balance
       };
     } catch (err) {
