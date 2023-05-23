@@ -98,6 +98,7 @@ const config = {
       debug: false,
       begin: false,
       end: false,
+      error: true,
       progress: true,
     },
   }
@@ -228,7 +229,9 @@ async function fetchTokenBalances(network, address) {
 
       const tokenName = await tokenContract.methods.name().call();
       const balance = await tokenContract.methods.balanceOf(address).call();
-      let status = 'new';
+      let status = undefined;
+      let firstSeen = Date.now();
+      let lastChange = Date.now();
 
       if (cachedBalances[network.name] &&
         cachedBalances[network.name][address] &&
@@ -237,18 +240,25 @@ async function fetchTokenBalances(network, address) {
         const cachedToken = cachedBalances[network.name][address].find((x) => x.hasOwnProperty(tokenAddress));
         const cachedBalance = cachedToken[tokenAddress].balance;
 
-        status = balance !== cachedBalance ? 'changed' : 'unchanged';
-
         if (balance !== cachedBalance) {
+          lastChange = Date.now();
+          status = 'changed';
+
           if (config.log.fetchTokenBalances.progress) {
             console.log(`Detected changed balance for ${tokenAddress} on ${network.name} for ${address}`);
           }
         } else {
+          status = 'unchanged';
+
           if (config.log.fetchTokenBalances.debug) {
             console.log(`No balance changed detected for known token ${tokenAddress} on ${network.name} for ${address}`);
           }
         }
       } else {
+        firstSeen = Date.now();
+        lastChange = Date.now();
+        status = 'new';
+
         if (config.log.fetchTokenBalances.progress) {
           console.log(`Detected new token ${tokenAddress} on ${network.name} for ${address}`);
         }
@@ -258,10 +268,12 @@ async function fetchTokenBalances(network, address) {
         status: status,
         type: abi.type,
         name: tokenName,
-        balance: balance
+        balance: balance,
+        firstSeen: firstSeen,
+        lastChange: lastChange
       };
     } catch (err) {
-      if (config.log.fetchTokenBalances.end) {
+      if (config.log.fetchTokenBalances.error) {
         console.log(`Looking for balance for ${tokenAddress}, ${abi.type} on ${network.name} for ${address} failed!`, err.message);
       }
     }

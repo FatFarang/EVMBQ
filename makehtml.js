@@ -46,7 +46,8 @@ function generateHTML(balances) {
           <tr>
             <th>Address</th>
             <th>Status</th>
-            <th>Token Contract</th>
+            <th>Changed</th>
+            <th>Contract</th>
             <th>Balance</th>
           </tr>
     `;
@@ -57,11 +58,12 @@ function generateHTML(balances) {
           if(parseInt(tokenContracts[tokenContract].balance) === 0) return;
           const color = '#' + address.substring(2,8) + 'A0';
           const explorer = networks.find(n => n.name == network)?.explorer || 'https://etherscan.io';          
-
+          const lastChanged = new Date(tokenContracts[tokenContract].lastChange).toLocaleString();
           html += `
           <tr style="background-color: ${color}; font-family: monospace; font-size: 12px;">
             <td><a target="_blank" href="${explorer}/address/${address}">${address}</a></td>
             <td>${tokenContracts[tokenContract].status}</td>
+            <td>${lastChanged}</td>
             <td><a target="_blank" href="${explorer}/token/${tokenContract}">${tokenContracts[tokenContract].name}</br>${tokenContract}</a></td>
             <td>${tokenContracts[tokenContract].balance}</td>
           </tr>
